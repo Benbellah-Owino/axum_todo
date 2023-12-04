@@ -12,7 +12,7 @@
 //! ```not_rust
 //! cargo run -p example-todos
 //! ```
-
+#[allow(unused_imports)]
 use axum::{
     error_handling::HandleErrorLayer,
     extract::{Path, Query, State},
@@ -31,7 +31,7 @@ use tower::{BoxError, ServiceBuilder};
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use uuid::Uuid;
-
+use todos_app::routes;
 #[tokio::main]
 async fn main(){
     tracing_subscriber::registry()
@@ -44,12 +44,18 @@ async fn main(){
 
 
     let app = Router::new()
-     
-    let listener = tokio::net::TcpListener::binf("127.0.0.1:3000")
+                .nest("/todos",routes::routes())
+                .route("/",get(hello_todos);
+    
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
             .await
             .unwrap();
 
     tracing::debug!("listening on {}", listener.local_addr().unwrap());
 
     axum::serve(listener, app).await.unwrap();
+}
+
+async fn hello_todos() -> &'static str{
+    "Hello Todo"
 }
