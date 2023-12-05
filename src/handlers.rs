@@ -41,7 +41,6 @@ pub struct Record{
     pub id: Thing,
 }
 
-#[debug_handler]
 pub async fn create_todo(State(db): State<Db>, Json(input): Json<CreateTodo>) -> impl IntoResponse{
     let todo = Todo::new(input.item);
 
@@ -52,14 +51,12 @@ pub async fn create_todo(State(db): State<Db>, Json(input): Json<CreateTodo>) ->
     (StatusCode::CREATED).into_response()
 }
 
-#[debug_handler]
 pub async fn get_todo(State(db): State<Db>, ) -> impl IntoResponse{
-    let todos = db.unwrap().query("SELECT * FROM type::table($table) GROUP BY completed;").bind(("table","todo")).await;
+    let todos = db.unwrap().query("SELECT * FROM type::table($table);").bind(("table","todo")).await;
     dbg!(todos);
     (StatusCode::FOUND).into_response()
 }
 
-#[debug_handler]
 pub async fn update_todo(State(db): State<Db>, Query(_params):Query<Params>) -> impl IntoResponse{
     let todo = db.unwrap().query("SELECT * FROM type::table($table);").bind(("table","todo")).await;
 
@@ -67,7 +64,6 @@ pub async fn update_todo(State(db): State<Db>, Query(_params):Query<Params>) -> 
     (StatusCode::FOUND).into_response()
 }
 
-#[debug_handler]
 pub async fn delete_todo(State(db): State<Db>, Query(params): Query<Params>) -> impl IntoResponse{
     let todo : Result<std::option::Option<Record>, surrealdb::Error>= db.unwrap().delete(("person", params.id.as_deref().unwrap())).await;
 

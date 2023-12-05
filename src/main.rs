@@ -32,6 +32,7 @@ use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use uuid::Uuid;
 use todos_app::routes;
+
 #[tokio::main]
 async fn main(){
     tracing_subscriber::registry()
@@ -44,8 +45,8 @@ async fn main(){
 
 
     let app = Router::new()
-                .nest("/todos",routes::routes())
-                .route("/",get(hello_todos);
+                .nest("/todos",routes::routes().await)
+                .route("/",get(hello_todos));
     
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
             .await
