@@ -18,7 +18,7 @@ use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
-    routing::{get, patch},
+    routing::get,
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
@@ -32,6 +32,7 @@ use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use uuid::Uuid;
 use todos_app::routes;
+use todos_app::db::{connect_db};
 
 #[tokio::main]
 async fn main(){
@@ -43,9 +44,9 @@ async fn main(){
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-
+    let db = connect_db().await;
     let app = Router::new()
-                .nest("/todos",routes::routes().await)
+                .nest("/todos",routes::routes(db))
                 .route("/",get(hello_todos));
     
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")

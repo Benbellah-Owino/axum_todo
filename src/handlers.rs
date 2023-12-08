@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use axum::{
     http::StatusCode,
     response::IntoResponse,
-    extract::{Query,State},
+    extract::{Query,State,Path},
     Json,
 };
 use serde_json::json;
@@ -40,17 +40,18 @@ pub struct Params{
     pub id:Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct Record{
-    pub id: Thing,
-    pub item: String,
-    pub completed: bool,
-}
 #[derive(Debug, Deserialize,Serialize, Clone)]
 pub struct TodoDb{
     pub id: Thing,
     pub item: Option<String>,
     pub completed:bool,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Record{
+    pub id: Thing,
+    pub item: String,
+    pub completed: bool,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -60,18 +61,22 @@ pub struct SendTodo{
     pub completed: bool,
 }
 
+#[derive(Debug, Serialize, Clone)]
+pub struct UpdateTodo{
+    field: String,
+    value: String,
+}
 
 pub async fn create_todo(State(db): State<Db>, Json(input): Json<CreateTodo>) -> impl IntoResponse{
     let todo = Todo::new(input.item);
 
-    let created: Result<Vec<Record>, surrealdb::Error> = db.unwrap().create("todo")
+    let created: Result<Vec<TodoDb>, surrealdb::Error> = db.unwrap().create("todo")
                                  .content(todo).await;
     dbg!(created.as_deref().unwrap());
 
     (StatusCode::CREATED).into_response()
 }
 
-    #[debug_handler]
 pub async fn get_todo(State(db): State<Db>, ) -> impl IntoResponse{
     //let todos = db.unwrap().query("SELECT id, item, completed FROM type::table($table) ORDER BY completed;").bind(("table","todo")).await;
     //dbg!(todos.unwrap());
@@ -111,19 +116,16 @@ pub async fn get_todo(State(db): State<Db>, ) -> impl IntoResponse{
     }
     }
 
-pub async fn update_todo(State(db): State<Db>, Query(params):Query<Params>) -> impl IntoResponse{
-     let id = params.id.as_deref().unwrap();
-    println!("{id}");
-
+pub async fn update_todo(State(db): State<Db>, Path(todo):Path<String>) -> impl IntoResponse{
+    println!("{:?}", todo);
     /*let todo = db.unwrap().query("SELECT * FROM type::table($table);").bind(("table","todo")).await;
 
     dbg!(todo);*/
     (StatusCode::FOUND).into_response()
 }
 
-pub async fn delete_todo(State(db): State<Db>, Query(params): Query<Params>) -> impl IntoResponse{
-    let id = params.id.as_deref().unwrap();
-    println!("{id}");
+pub async fn delete_todo(State(db): State<Db>,Path(todo):Path<String>) -> impl IntoResponse{
+        println!("{todo}");
         
     //let todo : Option<Todo> = db.unwrap().delete(("todo", params.id.as_deref().unwrap())).await;
 
