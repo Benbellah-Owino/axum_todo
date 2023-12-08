@@ -7,10 +7,13 @@ use axum::{
     extract::{Query,State},
     Json,
 };
+use serde_json::json;
 use axum_macros::debug_handler;
 use crate::db::Db;
 use surrealdb::sql::{Thing, thing, Object, Value};
-
+use std::collections::BTreeMap;
+use surrealdb::sql::Kind;
+use surrealdb::dbs::Response;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Todo{
     pub item: Option<String>,
@@ -43,6 +46,20 @@ pub struct Record{
     pub item: String,
     pub completed: bool,
 }
+#[derive(Debug, Deserialize,Serialize, Clone)]
+pub struct TodoDb{
+    pub id: Thing,
+    pub item: Option<String>,
+    pub completed:bool,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct SendTodo{
+    pub id: String,
+    pub item: String,
+    pub completed: bool,
+}
+
 
 pub async fn create_todo(State(db): State<Db>, Json(input): Json<CreateTodo>) -> impl IntoResponse{
     let todo = Todo::new(input.item);
@@ -54,22 +71,53 @@ pub async fn create_todo(State(db): State<Db>, Json(input): Json<CreateTodo>) ->
     (StatusCode::CREATED).into_response()
 }
 
+    #[debug_handler]
 pub async fn get_todo(State(db): State<Db>, ) -> impl IntoResponse{
     //let todos = db.unwrap().query("SELECT id, item, completed FROM type::table($table) ORDER BY completed;").bind(("table","todo")).await;
     //dbg!(todos.unwrap());
     //
-    let sql = "SELECT id, item, completed FROM type::table($table) ORDER BY completed;";
-    let ress = db.unwrap().query(sql).bind(("table", "todo")).await;
-    for object in into_iter_objects(ress)?{
-        println!("record {}", object);
-    };
-    (StatusCode::FOUND).into_response()
-}
+    let sql = "SELECT id, item, completed FROM todo ORDER BY completed;";
+    let ress = db.unwrap().query(sql).await;
 
-pub async fn update_todo(State(db): State<Db>, Query(_params):Query<Params>) -> impl IntoResponse{
-    let todo = db.unwrap().query("SELECT * FROM type::table($table);").bind(("table","todo")).await;
+    let mut todos:surrealdb::Response = ress.unwrap();
+    
+    let todos:Result<Vec<TodoDb>, surrealdb::Error> = todos.take(0);
+    
+    match todos{
+        Ok(r) => {
+            let mut res: Vec<SendTodo>= Vec::new();
+            dbg!(&r);
+            let r2 = r.clone();
+            for i in r2.iter(){
+                
+                let item = i.item.as_ref().unwrap().to_string();
+                let id = format!("{}:{}", i.id.tb, i.id.id);
 
-    dbg!(todo);
+                let todo = SendTodo{
+                    id,
+                    item,
+                    completed: i.completed,
+                };
+                res.push(todo);
+            }
+            dbg!(&res);
+            return (StatusCode::FOUND, Json(json!({"todos":res}))).into_response();
+        },
+        Err(e) => {
+            dbg!(e);
+            return (StatusCode::NOT_FOUND).into_response();
+        }
+        
+    }
+    }
+
+pub async fn update_todo(State(db): State<Db>, Query(params):Query<Params>) -> impl IntoResponse{
+     let id = params.id.as_deref().unwrap();
+    println!("{id}");
+
+    /*let todo = db.unwrap().query("SELECT * FROM type::table($table);").bind(("table","todo")).await;
+
+    dbg!(todo);*/
     (StatusCode::FOUND).into_response()
 }
 
@@ -83,17 +131,4 @@ pub async fn delete_todo(State(db): State<Db>, Query(params): Query<Params>) -> 
     (StatusCode::FOUND).into_response()
 }
 
-fn into_iter_objects(ress: Vec<Response>) -> Result<impl Iterator<Item = Result<Object>, Error>, Error> {
-	let res = ress.into_iter().next().map(|rp| rp.result).transpose()?;
 
-	match res {
-		Some(Value::Array(arr)) => {
-			let it = arr.into_iter().map(|v| match v {
-				Value::Object(object) => Ok(object),
-				_ => Err(anyhow!("A record was not an Object")),
-			});
-			Ok(it)
-		}
-		_ => Err(anyhow!("No records found.")),
-	}
-}
