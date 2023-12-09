@@ -21,18 +21,12 @@ use axum::{
     routing::get,
     Json, Router,
 };
-use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    sync::{Arc, RwLock},
-    time::Duration,
-};
-use tower::{BoxError, ServiceBuilder};
-use tower_http::trace::TraceLayer;
+
+
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use uuid::Uuid;
+
 use todos_app::routes;
-use todos_app::db::{connect_db};
+use todos_app::db::connect_db;
 
 #[tokio::main]
 async fn main(){
