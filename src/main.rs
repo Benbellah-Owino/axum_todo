@@ -19,7 +19,7 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
     routing::get,
-    Json, Router,
+    Json,
 };
 
 
@@ -27,7 +27,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use todos_app::routes;
 use todos_app::db::connect_db;
-
+use axum::{ Router};
 #[tokio::main]
 async fn main(){
     tracing_subscriber::registry()
@@ -40,10 +40,11 @@ async fn main(){
 
     let db = connect_db().await;
     let app = Router::new()
-                .nest("/todos",routes::routes(db))
+                .nest("/todos",routes::routes())
+                .with_state(db)
                 .route("/",get(hello_todos));
     
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:8080")
             .await
             .unwrap();
 

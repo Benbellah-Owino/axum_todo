@@ -8,12 +8,9 @@ use axum::{
     Json,
 };
 use serde_json::json;
-use axum_macros::debug_handler;
 use crate::db::Db;
-use surrealdb::sql::{Thing, thing, Object, Value};
-use std::collections::BTreeMap;
-use surrealdb::sql::Kind;
-use surrealdb::dbs::Response;
+use surrealdb::sql::Thing;
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Todo{
     pub item: Option<String>,
@@ -61,10 +58,11 @@ pub struct SendTodo{
     pub completed: bool,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Deserialize,Serialize, Clone)]
 pub struct UpdateTodo{
-    field: String,
-    value: String,
+    field: Option<String>,
+    value:Option<String>,
+    old_value:Option<String>,
 }
 
 pub async fn create_todo(State(db): State<Db>, Json(input): Json<CreateTodo>) -> impl IntoResponse{
@@ -77,10 +75,8 @@ pub async fn create_todo(State(db): State<Db>, Json(input): Json<CreateTodo>) ->
     (StatusCode::CREATED).into_response()
 }
 
-pub async fn get_todo(State(db): State<Db>, ) -> impl IntoResponse{
-    //let todos = db.unwrap().query("SELECT id, item, completed FROM type::table($table) ORDER BY completed;").bind(("table","todo")).await;
-    //dbg!(todos.unwrap());
-    //
+pub async fn get_todo(State(db): State<Db> ) -> impl IntoResponse{
+    
     let sql = "SELECT id, item, completed FROM todo ORDER BY completed;";
     let ress = db.unwrap().query(sql).await;
 
@@ -103,24 +99,34 @@ pub async fn get_todo(State(db): State<Db>, ) -> impl IntoResponse{
                     item,
                     completed: i.completed,
                 };
+
+                dbg!(&todo);
                 res.push(todo);
             }
-            dbg!(&res);
+            
             return (StatusCode::FOUND, Json(json!({"todos":res}))).into_response();
         },
         Err(e) => {
-            dbg!(e);
+            
             return (StatusCode::NOT_FOUND).into_response();
         }
         
     }
     }
 
-pub async fn update_todo(State(db): State<Db>, Path(todo):Path<String>) -> impl IntoResponse{
-    println!("{:?}", todo);
-    /*let todo = db.unwrap().query("SELECT * FROM type::table($table);").bind(("table","todo")).await;
-
-    dbg!(todo);*/
+//#[axum_macros::debug_handler]
+pub async fn update_todo(State(db): State<Db>, Path(todo):Path<String>, Json(input):Json<UpdateTodo>) -> impl IntoResponse{
+    
+    let value = input.value.clone().unwrap();
+    let item = String::from("item");
+    match value {
+        item => {
+    let updated: Result<Option<TodoDb>, surrealdb::Error> = db.unwrap().update(("todo",todo)).merge(json!({"item": input.value })).await;
+        },
+        _ => {
+            println!("Neigh");
+        }
+    }
     (StatusCode::FOUND).into_response()
 }
 
