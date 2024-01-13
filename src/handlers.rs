@@ -83,11 +83,10 @@ pub async fn get_todo(State(db): State<Db> ) -> impl IntoResponse{
     let mut todos:surrealdb::Response = ress.unwrap();
     
     let todos:Result<Vec<TodoDb>, surrealdb::Error> = todos.take(0);
-    
+    dbg!(&todos); 
     match todos{
         Ok(r) => {
             let mut res: Vec<SendTodo>= Vec::new();
-            dbg!(&r);
             let r2 = r.clone();
             for i in r2.iter(){
                 
@@ -100,43 +99,78 @@ pub async fn get_todo(State(db): State<Db> ) -> impl IntoResponse{
                     completed: i.completed,
                 };
 
-                dbg!(&todo);
                 res.push(todo);
             }
-            
-            return (StatusCode::FOUND, Json(json!({"todos":res}))).into_response();
+           dbg!(&res); 
+            return (StatusCode::OK, Json(json!({"todos":res}))).into_response();
         },
         Err(e) => {
-            
+            dbg!(e);  
             return (StatusCode::NOT_FOUND).into_response();
         }
         
     }
     }
+#[derive(Debug, Serialize)]
+struct Item{
+    item:Option<String>
+}
+
+#[derive(Debug, Serialize)]
+struct Completed{
+    completed: bool
+}
 
 //#[axum_macros::debug_handler]
 pub async fn update_todo(State(db): State<Db>, Path(todo):Path<String>, Json(input):Json<UpdateTodo>) -> impl IntoResponse{
     
-    let value = input.value.clone().unwrap();
-    let item = String::from("item");
-    match value {
-        item => {
-    let updated: Result<Option<TodoDb>, surrealdb::Error> = db.unwrap().update(("todo",todo)).merge(json!({"item": input.value })).await;
+    let true_v = String::from("true");
+    let false_v = String::from("false");
+    match input.field.unwrap().as_str() {
+        "item" => {
+            let update_item = input.value.clone().unwrap();
+            //let sql = "UPDATE 
+            let new_item: Item = Item{
+                item: Some(update_item),
+            };
+            
+            // Result<Option<TodoDb>,surrealdb::Error> 
+            let updated: Option<TodoDb> = db.unwrap().update(("todo",todo)).merge(new_item).await.unwrap();
+            return (StatusCode::FOUND, Json(json!({"todos": updated}))).into_response()
         },
+        "completed" =>{
+            let update_item = input.value.clone().unwrap();
+            let mut updated: Option<TodoDb> = None;
+            let mut new_item:Completed = Completed{
+                completed:true,
+            };
+
+            if update_item  == true_v{
+                updated = db.unwrap().update(("todo",todo)).merge(new_item).await.unwrap();
+            }else if update_item == false_v{
+                new_item.completed = false;
+                updated =db.unwrap().update(("todo",todo)).merge(new_item).await.unwrap();
+            } 
+
+            return (StatusCode::FOUND, Json(json!({"todos": updated}))).into_response()
+
+        }
+
         _ => {
             println!("Neigh");
+            return (StatusCode::FOUND).into_response()
+
         }
     }
-    (StatusCode::FOUND).into_response()
 }
 
-pub async fn delete_todo(State(db): State<Db>,Path(todo):Path<String>) -> impl IntoResponse{
-        println!("{todo}");
+pub async fn delete_todo(State(db): State<Db>,Path(id):Path<String>) -> impl IntoResponse{
+    println!("{id}");
         
-    //let todo : Option<Todo> = db.unwrap().delete(("todo", params.id.as_deref().unwrap())).await;
+    let todo : Option<Todo> = db.unwrap().delete(("todo", id)).await.unwrap();
 
     //dbg!(todo);
-    (StatusCode::FOUND).into_response()
+    (StatusCode::FOUND, Json(json!({"deleted":todo})).into_response())
 }
 
 
